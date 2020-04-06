@@ -16,8 +16,9 @@
 
 ### Running instructions
 
-- `pip install requirements`
+- `cd src`
+- `python3 -m venv env && source env/bin/activate`
 - `python3 -m spacy download en`
-- `python -m textblob.download_corpora`
+- `python3 -m textblob.download_corpora`
 - `./Infersent/dataset/get_data.bash`
 
