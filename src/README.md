@@ -19,5 +19,5 @@
 - `pip install requirements`
 - `python3 -m spacy download en`
 - `python -m textblob.download_corpora`
-- `./InferSent/dataset/get_data.bash`
+- `./Infersent/dataset/get_data.bash`
 
