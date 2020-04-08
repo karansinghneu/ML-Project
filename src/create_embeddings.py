@@ -1,6 +1,6 @@
 import warnings
 
-from Infersent.models import InferSent
+from InferSent.models import InferSent
 
 warnings.filterwarnings('ignore')
 import pickle
@@ -54,8 +54,8 @@ if __name__ == '__main__':
     params_model = {'bsize': 64, 'word_emb_dim': 300, 'enc_lstm_dim': 2048,
                     'pool_type': 'max', 'dpout_model': 0.0, 'version': 1}
     infersent = InferSent(params_model)
-    infersent.load_state_dict(torch.load('Infersent/encoder/infersent1.pkl'))
-    infersent.set_w2v_path("Infersent/dataset/GloVe/glove.840B.300d.txt")
+    infersent.load_state_dict(torch.load('InferSent/encoder/infersent1.pkl'))
+    infersent.set_w2v_path("InferSent/dataset/GloVe/glove.840B.300d.txt")
 
     infersent.build_vocab(sentences, tokenize=True)
 
