@@ -20,6 +20,7 @@
 - `python3 -m venv env && source env/bin/activate`
 - `python3 -m spacy download en`
 - `python3 -m textblob.download_corpora`
+- `pip install -r requirements.txt`
 - `mkdir encoder && curl -Lo encoder/infersent1.pkl https://dl.fbaipublicfiles.com/infersent/infersent1.pkl && curl -Lo encoder/infersent2.pkl https://dl.fbaipublicfiles.com/infersent/infersent2.pkl`
 - `./InferSent/dataset/get_data.bash`
 
