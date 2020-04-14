@@ -9,24 +9,28 @@ warnings.filterwarnings('ignore')
 import spacy
 from nltk import Tree
 
-en_nlp = spacy.load('en')
+import xgboost as xgb
 from nltk.stem.lancaster import LancasterStemmer
-
-st = LancasterStemmer()
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
-import xgboost as xgb
+
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 
-data = pd.read_csv("train_detect_sent.csv").reset_index(drop=True)
+en_nlp = spacy.load('en')
+st = LancasterStemmer()
 
-print(data.shape)
 
-print(data.head(3))
+def load_data():
+    data = pd.read_csv("train_detect_sent_final.csv").reset_index(drop=True)
 
-print(ast.literal_eval(data["sentences"][0]))
+    print(data.shape)
 
-data = data[data["sentences"].apply(lambda x: len(ast.literal_eval(x))) < 11].reset_index(drop=True)
+    print(data.head(3))
+
+    print(ast.literal_eval(data["sentences"][0]))
+
+    data_total = data[data["sentences"].apply(lambda x: len(ast.literal_eval(x))) < 11].reset_index(drop=True)
+    return data_total
 
 
 def create_features(data):
@@ -48,55 +52,43 @@ def create_features(data):
     return train
 
 
-train = create_features(data)
+def create_concatenated(training):
+    training.apply(max, axis=0)
 
-del data
+    subset1 = training.iloc[:, :10].fillna(60)
+    subset2 = training.iloc[:, 10:].fillna(1)
 
-print(train.head(3))
+    print(subset1.head(3))
 
-# train.fillna(10000, inplace=True)
+    print(subset2.head(3))
 
-print(train.head(3).transpose())
+    # train2 = pd.concat([subset1, subset2], axis=1, join_axes=[subset1.index])
+    train2 = pd.concat([subset1, subset2], axis=1, join='outer')
 
-### Fitting Multinomial Logistic Regression
+    print(train2.head(3))
 
-### Standardize
-train.apply(max, axis=0)
+    train2.apply(max, axis=0)
+    return train2
 
-subset1 = train.iloc[:, :10].fillna(60)
-subset2 = train.iloc[:, 10:].fillna(1)
 
-print(subset1.head(3))
+def log_reg_fit(training, training_standardised):
+    ### Fitting Multinomial Logistic Regression
 
-print(subset2.head(3))
+    ### Standardize
 
-train2 = pd.concat([subset1, subset2], axis=1, join_axes=[subset1.index])
+    scaler = MinMaxScaler()
+    X = scaler.fit_transform(training_standardised.iloc[:, :-1])
 
-print(train2.head(3))
+    print(X)
 
-train2.apply(max, axis=0)
+    train_x, test_x, train_y, test_y = train_test_split(X,
+                                                        training.iloc[:, -1], train_size=0.8, random_state=5)
 
-scaler = MinMaxScaler()
-X = scaler.fit_transform(train2.iloc[:, :-1])
+    mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
+    mul_lr.fit(train_x, train_y)
 
-print(X)
-
-train_x, test_x, train_y, test_y = train_test_split(X,
-                                                    train.iloc[:, -1], train_size=0.8, random_state=5)
-
-mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-mul_lr.fit(train_x, train_y)
-
-print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
-print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
-
-### Logistic-Regression with Root Match feature
-
-predicted = pd.read_csv("train_detect_sent.csv").reset_index(drop=True)
-
-predicted = predicted[predicted["sentences"].apply(lambda x: len(ast.literal_eval(x))) < 11].reset_index(drop=True)
-
-print(predicted.shape)
+    print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
+    print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
 
 
 def get_columns_from_root(train):
@@ -109,60 +101,84 @@ def get_columns_from_root(train):
                 train.loc[i, "column_root_" + "%s" % item] = 1
     return train
 
+## For Model with root matching
+def log_reg_root(predicted1, train2):
+    # ### Logistic-Regression with Root Match feature
+    # predicted = pd.read_csv("train_detect_sent.csv").reset_index(drop=True)
+    #
+    # predicted = predicted[predicted["sentences"].apply(lambda x: len(ast.literal_eval(x))) < 11].reset_index(drop=True)
 
-predicted = get_columns_from_root(predicted)
+    print(predicted1.shape)
+    predicted_new = get_columns_from_root(predicted1)
 
-print(predicted.head(3).transpose())
+    print(predicted_new.head(3).transpose())
 
-subset3 = predicted[
-    ["column_root_0", "column_root_1", "column_root_2", "column_root_3", "column_root_4", "column_root_5", \
-     "column_root_6", "column_root_7", "column_root_8", "column_root_9"]]
+    subset3 = predicted_new[
+        ["column_root_0", "column_root_1", "column_root_2", "column_root_3", "column_root_4", "column_root_5", \
+         "column_root_6", "column_root_7", "column_root_8", "column_root_9"]]
 
-subset3.fillna(0, inplace=True)
+    subset3.fillna(0, inplace=True)
 
-train3 = pd.concat([subset3, train2], axis=1, join_axes=[subset3.index])
+    train3 = pd.concat([subset3, train2], axis=1, join='outer')
 
-print(train3.head(3).transpose())
+    print(train3.head(3).transpose())
 
-train3 = train3[["column_root_0", "column_root_1", "column_root_2", "column_root_3", "column_root_4", "column_root_5", \
-                 "column_root_6", "column_root_7", "column_root_8", "column_root_9", "column_cos_0", "column_cos_1", \
-                 "column_cos_2", "column_cos_3", "column_cos_4", "column_cos_5", \
-                 "column_cos_6", "column_cos_7", "column_cos_8", "column_cos_9", "target"]]
+    train3 = train3[
+        ["column_root_0", "column_root_1", "column_root_2", "column_root_3", "column_root_4", "column_root_5", \
+         "column_root_6", "column_root_7", "column_root_8", "column_root_9", "column_cos_0", "column_cos_1", \
+         "column_cos_2", "column_cos_3", "column_cos_4", "column_cos_5", \
+         "column_cos_6", "column_cos_7", "column_cos_8", "column_cos_9", "target"]]
 
-train_x, test_x, train_y, test_y = train_test_split(train3.iloc[:, :-1],
-                                                    train3.iloc[:, -1], train_size=0.8, random_state=5)
+    train_x, test_x, train_y, test_y = train_test_split(train3.iloc[:, :-1],
+                                                        train3.iloc[:, -1], train_size=0.8, random_state=5)
 
-mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-mul_lr.fit(train_x, train_y)
+    mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
+    mul_lr.fit(train_x, train_y)
 
-print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
-print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
+    print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
+    print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
+    ### Random Forest
 
-### Random Forest
+    rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
+    rf.fit(train_x, train_y)
 
-rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
-rf.fit(train_x, train_y)
+    print("Random Forest Train Accuracy : ", metrics.accuracy_score(train_y, rf.predict(train_x)))
+    print("Random Forest Test Accuracy : ", metrics.accuracy_score(test_y, rf.predict(test_x)))
 
-print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, rf.predict(train_x)))
-print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, rf.predict(test_x)))
+    ### XgBoost
 
-### XgBoost
+    model = xgb.XGBClassifier()
+    param_dist = {"max_depth": [3, 5, 10],
+                  "min_child_weight": [1, 5, 10],
+                  "learning_rate": [0.07, 0.1, 0.2],
+                  }
 
-model = xgb.XGBClassifier()
-param_dist = {"max_depth": [3, 5, 10],
-              "min_child_weight": [1, 5, 10],
-              "learning_rate": [0.07, 0.1, 0.2],
-              }
+    # run randomized search
+    grid_search = GridSearchCV(model, param_grid=param_dist, cv=3,
+                               verbose=5, n_jobs=-1)
+    grid_search.fit(train_x, train_y)
 
-# run randomized search
-grid_search = GridSearchCV(model, param_grid=param_dist, cv=3,
-                           verbose=5, n_jobs=-1)
-grid_search.fit(train_x, train_y)
+    print(grid_search.best_estimator_)
 
-print(grid_search.best_estimator_)
+    xg = xgb.XGBClassifier(max_depth=5)
+    xg.fit(train_x, train_y)
 
-xg = xgb.XGBClassifier(max_depth=5)
-xg.fit(train_x, train_y)
+    print("XG Boost Train Accuracy : ", metrics.accuracy_score(train_y, xg.predict(train_x)))
+    print("XG Boost Test Accuracy : ", metrics.accuracy_score(test_y, xg.predict(test_x)))
 
-print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, xg.predict(train_x)))
-print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, xg.predict(test_x)))
+
+data_usage = load_data()
+train_set = create_features(data_usage)
+
+# del data
+
+print(train_set.head(3))
+
+# train.fillna(10000, inplace=True)
+
+print(train_set.head(3).transpose())
+training_standardised = create_concatenated(train_set)
+log_reg_fit(train_set, training_standardised)
+
+## To run Model with root matching
+# log_reg_root(data_usage, training_standardised)
