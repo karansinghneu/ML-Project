@@ -134,10 +134,10 @@ def print_results(predicted):
     print("Accuracy for Cosine Similarity", accuracy(predicted["target"], predicted["cos_predicted_index"]))
 
 
-embeddings_paths = ['data/dict_embeddings1.pickle', 'data/dict_embeddings2.pickle']
+embeddings_paths = ['data/full_data/dict_embeddings1.pickle', 'data/full_data/dict_embeddings2.pickle']
 data_path = "data/train.csv"
 
-root_matching = False  # Takes a long time
+root_matching = True  # Takes a long time
 save_data = True
 
 # Load Embedding dictionary
@@ -160,14 +160,14 @@ print_results(predicted)
 
 if save_data:
     print("Saving predicted results...")
-    predicted.to_csv("train_detect_sent.csv", index=None)
+    predicted.to_csv("train_detect_sent_final.csv", index=None)
     print("Saved.")
 
 # Root Matching
 if root_matching:
     print("Root Matching...")
 
-    predicted = pd.read_csv("train_detect_sent.csv").reset_index(drop=True)
+    predicted = pd.read_csv("train_detect_sent_final.csv").reset_index(drop=True)
     predicted["root_match_idx"] = predicted.apply(match_roots, axis=1)
     predicted["root_match_idx_first"] = predicted["root_match_idx"].apply(lambda x: x[0] if len(x) > 0 else 0)
     predicted.to_csv("train_detect_sent.csv", index=None)
