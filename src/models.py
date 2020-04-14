@@ -15,6 +15,7 @@ import time
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
 """
 BLSTM (max/mean) encoder
@@ -246,7 +247,6 @@ class BLSTMEncoder(nn.Module):
         argmaxs = [np.sum((idxs == k)) for k in range(len(sent[0]))]
 
         # visualize model
-        import matplotlib.pyplot as plt
         x = range(len(sent[0]))
         y = [100.0*n/np.sum(argmaxs) for n in argmaxs]
         plt.xticks(x, sent[0], rotation=45)
