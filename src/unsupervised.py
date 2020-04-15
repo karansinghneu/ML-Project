@@ -1,12 +1,11 @@
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
 import ast
 from textblob import TextBlob
 import pickle
 from scipy import spatial
 import spacy
-from nltk import Tree
 from nltk.stem.lancaster import LancasterStemmer
-from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer
 
 import warnings
 

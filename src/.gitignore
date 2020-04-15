@@ -139,8 +139,12 @@ dmypy.json
 cython_debug/
 
 .idea/
+data/full_data/
+
+# data/dict_embeddings1.pickle
 # Abhinav's local files
-proj
+venv-gpu
+ignore
 
 # Karan's local files
 
