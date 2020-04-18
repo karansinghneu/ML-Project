@@ -20,8 +20,13 @@ en_nlp = spacy.load('en')
 st = LancasterStemmer()
 
 
+
+features_csv_path = "data/train_detect_sent.csv"
+features_csv_with_root_matching_path = "data/train_detect_sent_root_matching.csv"
+
+
 def load_data():
-    data = pd.read_csv("train_detect_sent_final.csv").reset_index(drop=True)
+    data = pd.read_csv(features_csv_path).reset_index(drop=True)
 
     print(data.shape)
 
@@ -104,7 +109,7 @@ def get_columns_from_root(train):
 ## For Model with root matching
 def log_reg_root(predicted1, train2):
     # ### Logistic-Regression with Root Match feature
-    # predicted = pd.read_csv("train_detect_sent.csv").reset_index(drop=True)
+    # predicted = pd.read_csv(features_csv_with_root_matching_path).reset_index(drop=True)
     #
     # predicted = predicted[predicted["sentences"].apply(lambda x: len(ast.literal_eval(x))) < 11].reset_index(drop=True)
 

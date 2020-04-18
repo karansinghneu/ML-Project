@@ -1,27 +1,48 @@
+import ast
+import errno
+import os
+import pickle
+import warnings
+
 import numpy as np
 import pandas as pd
-import ast
-from textblob import TextBlob
-import pickle
-from scipy import spatial
 import spacy
 from nltk.stem.lancaster import LancasterStemmer
-
-import warnings
+from scipy import spatial
+from textblob import TextBlob
 
 warnings.filterwarnings('ignore')
 
+embeddings_paths = [
+    'data/full_data/dict_embeddings1.pickle',
+    'data/full_data/dict_embeddings2.pickle'
+]
+squad_preprocessed_data_path = "data/train.csv"
+output_csv_path = "data/train_detect_sent.csv"
+output_csv_with_root_matching_path = "data/train_detect_sent_root_matching.csv"
+root_matching = False  # Takes a long time
+
+
+def silentremove(filename):
+    try:
+        os.remove(filename)
+    except OSError as e:
+        if e.errno != errno.ENOENT:  # errno.ENOENT = no such file or directory
+            raise  # re-raise exception if a different error occurred
+
 
 # Loads embeddings into memory
-def load_embeddings(embeddings_path):
+def load_embeddings_as_dict(paths):
     dict_emb = {}
-    for emb_path in embeddings_path:
-        with open(emb_path, "rb") as f:
-            d = pickle.load(f)
-
-        dict_emb.update(d)
-        del d
-
+    for emb_path in paths:
+        try:
+            with open(emb_path, "rb") as f:
+                d = pickle.load(f)
+            dict_emb.update(d)
+            del d
+        except FileNotFoundError:
+            print("Please check embeddings path: ", emb_path)
+            raise
     return dict_emb
 
 
@@ -35,25 +56,37 @@ def get_target_index(x):
 
 
 # Processes training data
-def process_data(train, embeddings):
+def process_data(df, emb_dict):
+    df.dropna(inplace=True)
     # Breaking context paragraph into list of strings (sentences)
     print("- Processing sentences")
-    train['sentences'] = train['context'].apply(lambda x: [item.raw for item in TextBlob(x).sentences])
+    df['sentences'] = df['context'].apply(lambda x: [item.raw for item in TextBlob(x).sentences])
 
     # Finds index of sentence from the context in which the answer is found
     print("- Processing targets")
-    train["target"] = train.apply(get_target_index, axis=1)
+    df["target"] = df.apply(get_target_index, axis=1)
 
     # Imports sentence embeddings into dataframe if exists
     print("- Processing sentence embeddings")
-    train['sent_emb'] = train['sentences'].apply(
-        lambda x: [embeddings[item][0] if item in embeddings else np.zeros(4096) for item in x])
-
+    df['sent_emb'] = df['sentences'].apply(sent_embeddings)
     # Imports question embeddings into dataframe if exists
     print("- Processing question embeddings")
-    train['quest_emb'] = train['question'].apply(lambda x: embeddings[x] if x in embeddings else np.zeros(4096))
+    df['quest_emb'] = df['question'].apply(
+        lambda x: emb_dict[x] if x in emb_dict else np.zeros(4096)
+    )
 
-    return train
+    return df
+
+
+# Populate embeddings for sentence.
+def sent_embeddings(x):
+    sent_embs = []
+    for item in x:
+        if item in emb_dict:
+            sent_embs.append(emb_dict[item].reshape(1, 4096)[0])
+        else:
+            sent_embs.append(np.zeros(4096))
+    return sent_embs
 
 
 # Computes cosine similarity distance for each question
@@ -133,40 +166,40 @@ def print_results(predicted):
     print("Accuracy for Cosine Similarity", accuracy(predicted["target"], predicted["cos_predicted_index"]))
 
 
-embeddings_paths = ['data/full_data/dict_embeddings1.pickle', 'data/full_data/dict_embeddings2.pickle']
-data_path = "data/train.csv"
+if __name__ == '__main__':
+    # Load Embedding dictionary
+    print("Loading embeddings...")
+    emb_dict = load_embeddings_as_dict(embeddings_paths)
 
-root_matching = True  # Takes a long time
-save_data = True
+    # Load training data
+    print("Loading training data...")
 
-# Load Embedding dictionary
-print("Loading embeddings...")
-emb_dict = load_embeddings(embeddings_paths)
+    if not os.path.isfile(squad_preprocessed_data_path):
+        print("Please check SQUAD training data path: ", squad_preprocessed_data_path)
+        raise Exception
 
-# Load traning data
-print("Loading training data...")
-train = pd.read_csv(data_path)
+    silentremove(output_csv_path)
+    for train_chunk in pd.read_csv(squad_preprocessed_data_path, chunksize=4096):
+        # pre-process data
+        print("Processing data chunk")
+        train_chunk = process_data(train_chunk, emb_dict)
 
-# Process data
-print("Processing data...")
-train.dropna(inplace=True)
-train = process_data(train, emb_dict)
+        # Predicted Cosine & Euclidean Index
+        print("Calculating predictions for chunk")
+        predicted = predictions(train_chunk)
+        print_results(predicted)
 
-# Predicted Cosine & Euclidean Index
-print("Calculating predictions...")
-predicted = predictions(train)
-print_results(predicted)
+        # TODO: Delete unnecessary columns before saving.
+        print("Saving predicted results for chunk")
+        predicted.to_csv(output_csv_path, index=None, mode='a')
 
-if save_data:
-    print("Saving predicted results...")
-    predicted.to_csv("train_detect_sent_final.csv", index=None)
-    print("Saved.")
+    print("Saved to: ", output_csv_path)
 
-# Root Matching
-if root_matching:
-    print("Root Matching...")
-
-    predicted = pd.read_csv("train_detect_sent_final.csv").reset_index(drop=True)
-    predicted["root_match_idx"] = predicted.apply(match_roots, axis=1)
-    predicted["root_match_idx_first"] = predicted["root_match_idx"].apply(lambda x: x[0] if len(x) > 0 else 0)
-    predicted.to_csv("train_detect_sent.csv", index=None)
+    # Root Matching
+    if root_matching:
+        print("Root Matching...")
+        predicted = pd.read_csv(output_csv_path).reset_index(drop=True)
+        predicted["root_match_idx"] = predicted.apply(match_roots, axis=1)
+        predicted["root_match_idx_first"] = predicted["root_match_idx"].apply(lambda x: x[0] if len(x) > 0 else 0)
+        silentremove(output_csv_with_root_matching_path)
+        predicted.to_csv(output_csv_with_root_matching_path, index=None)
