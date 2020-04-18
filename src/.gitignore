@@ -139,8 +139,14 @@ dmypy.json
 cython_debug/
 
 .idea/
+data/
+train_detect_sent.csv
+train_detect_sent_final.csv
+
+# data/dict_embeddings1.pickle
 # Abhinav's local files
-proj
+venv-gpu
+ignore
 
 # Karan's local files
 

@@ -11,6 +11,19 @@ import spacy
 
 en_nlp = spacy.load('en')
 
+# CONFIG
+embeddings_paths = [
+    'data/dict_embeddings1.pickle',
+    'data/dict_embeddings2.pickle'
+]
+squad_dataset_path = "../squad/train-v2.0.json"
+output_dataset_as_csv_path = "data/train.csv"
+
+infersent_pretrained_path = 'InferSent/encoder/infersent1.pkl'
+glove_path = "InferSent/dataset/GloVe/glove.840B.300d.txt"
+
+full_data = False
+
 
 def populate_dataframe(training):
     contexts = []
@@ -18,82 +31,75 @@ def populate_dataframe(training):
     answers_text = []
     answers_start = []
 
-    for i in range(training.shape[0]):
-        topic = training.iloc[i, 0]['paragraphs']
+    _size = training.shape[0] if full_data else 2
+
+    for i in range(_size):
+        topic = training['data'][i]['paragraphs']
         for sub_para in topic:
             for q_a in sub_para['qas']:
                 questions.append(q_a['question'])
-                answers_start.append(q_a['answers'][0]['answer_start'])
-                answers_text.append(q_a['answers'][0]['text'])
+                # Squad 2.0 - answers may be empty.
+                if len(q_a['answers']) == 0:
+                    answers_start.append(-1)
+                    answers_text.append(None)
+                else:
+                    answers_start.append(q_a['answers'][0]['answer_start'])
+                    answers_text.append(q_a['answers'][0]['text'])
                 contexts.append(sub_para['context'])
     df = pd.DataFrame({"context": contexts, "question": questions, "answer_start": answers_start, "text": answers_text})
-    df.to_csv("data/train.csv", index=False)
     return df
 
 
-def generate_embeddings(training):
-    dataframe = populate_dataframe(training)
+def generate_embeddings(df):
+    paras = list(df["context"].drop_duplicates().reset_index(drop=True))
 
-    paras = list(dataframe["context"].drop_duplicates().reset_index(drop=True))
+    print("Paragraph count:", len(paras))
 
     blob = TextBlob(" ".join(paras))
     sentences = [item.raw for item in blob.sentences]
 
-    print("Sentence count:", len(sentences))
-
     params_model = {'bsize': 64, 'word_emb_dim': 300, 'enc_lstm_dim': 2048,
                     'pool_type': 'max', 'dpout_model': 0.0, 'version': 1}
     infersent = InferSent(params_model)
-    infersent.load_state_dict(torch.load('InferSent/encoder/infersent1.pkl'))
-    infersent.set_w2v_path("InferSent/dataset/GloVe/glove.840B.300d.txt")
+    infersent.load_state_dict(torch.load(infersent_pretrained_path))
+    infersent.set_w2v_path(glove_path)
 
+    print("Building Infersent vocabulary")
     infersent.build_vocab(sentences, tokenize=True)
 
     dict_embeddings = {}
 
-    print("Building sentences dict")
-    # for i in range(len(sentences)):
-    for i in range(1000):
-        if i % 100 == 0:
-            print(i)
-        dict_embeddings[sentences[i]] = infersent.encode([sentences[i]], tokenize=True)
+    print("Building sentence embeddings")
+    print("Sentence count:", len(sentences))
+    # embedded_sentences = infersent.encode(sentences, tokenize=True)
+    for i in range(len(sentences)):
+        # dict_embeddings[sentences[i]] = embedded_sentences[i]
+        dict_embeddings[sentences[i]] = infersent.encode(sentences[i], tokenize=True)
 
-    questions = list(dataframe["question"])
+    print("Building question embeddings")
+    questions = df["question"].tolist()
+    print("Questions count:", len(questions))
+    # embedded_questions = infersent.encode(questions, tokenize=True)
+    for i in range(len(questions)):
+        # dict_embeddings[questions[i]] = embedded_questions[i]
+        dict_embeddings[questions[i]] = infersent.encode(questions[i], tokenize=True)
 
-    print("Building questions dict")
-    # for i in range(len(questions)):
-    for i in range(1000):
-        if i % 100 == 0:
-            print(i)
-        dict_embeddings[questions[i]] = infersent.encode([questions[i]], tokenize=True)
-
-    d1 = {key: dict_embeddings[key] for i, key in enumerate(dict_embeddings) if i % 2 == 0}
-    d2 = {key: dict_embeddings[key] for i, key in enumerate(dict_embeddings) if i % 2 == 1}
-
-    with open('data/full_data/dict_embeddings1.pickle', 'wb') as handle:
-        pickle.dump(d1, handle)
-        print("Created 'data/full_data/dict_embeddings1.pickl")
-
-    with open('data/full_data/dict_embeddings2.pickle', 'wb') as handle:
-        pickle.dump(d2, handle)
-        print("Created 'data/full_data/dict_embeddings2.pickl")
-    return dict_embeddings, d1, d2
+    return dict_embeddings
 
 
 if __name__ == '__main__':
+    train = pd.read_json(squad_dataset_path)
 
-    train = pd.read_json("data/train-v1.1.json")
+    dataframe = populate_dataframe(train)
+    dataframe.to_csv(output_dataset_as_csv_path, index=False)
+    print("Saved data to: ", output_dataset_as_csv_path)
 
-    valid = pd.read_json("data/dev-v1.1.json")
+    print("Creating embeddings")
+    dict_embeddings = generate_embeddings(dataframe)
 
-    print("Training set: ", train.shape)
-    print('Train Head', train.head(3))
-    print('The training i-loc part', train.iloc[1, 0]['paragraphs'][0])
-
-    print("Validation set: ", valid.shape)
-    print('Validation head', valid.head(3))
-    print('The validation i-loc part', valid.iloc[1, 0]['paragraphs'][0])
-    final_embeddings, embedding_first, embedding_second = generate_embeddings(train)
-    print('Full Dict Embeddings', final_embeddings)
-    print('The dictionary 1 is:', embedding_first)
-    print('The dictionary 2 is:', embedding_second)
+    for index, embeddings_path in enumerate(embeddings_paths):
+        with open(embeddings_path, 'wb') as handle:
+            embedding_half = {key: dict_embeddings[key] for i, key in enumerate(dict_embeddings) if
+                              i % len(embeddings_paths) == index}
+            pickle.dump(embedding_half, handle)
+            print("Saved: ", embeddings_path)
