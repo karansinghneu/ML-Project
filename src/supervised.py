@@ -21,7 +21,7 @@ st = LancasterStemmer()
 
 
 def load_data():
-    data = pd.read_csv("train_detect_sent_final.csv").reset_index(drop=True)
+    data = pd.read_csv("train_detect_sent.csv").reset_index(drop=True)
 
     print(data.shape)
 
@@ -181,4 +181,4 @@ training_standardised = create_concatenated(train_set)
 log_reg_fit(train_set, training_standardised)
 
 ## To run Model with root matching
-# log_reg_root(data_usage, training_standardised)
+log_reg_root(data_usage, training_standardised)
