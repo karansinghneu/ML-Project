@@ -102,7 +102,7 @@ def predict_index(distances):
     if all(isnan):
         return 0
 
-    return np.argmin(distances)
+    return np.nanargmin(distances)
 
 # Computes prediction from training data
 def predictions(df):
