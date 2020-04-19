@@ -71,18 +71,14 @@ def generate_embeddings(df):
 
     print("Building sentence embeddings")
     print("Sentence count:", len(sentences))
-    # embedded_sentences = infersent.encode(sentences, tokenize=True)
     for i in range(len(sentences)):
-        # dict_embeddings[sentences[i]] = embedded_sentences[i]
-        dict_embeddings[sentences[i]] = infersent.encode(sentences[i], tokenize=True)
+        dict_embeddings[sentences[i]] = infersent.encode([sentences[i]], tokenize=True)
 
     print("Building question embeddings")
     questions = df["question"].tolist()
     print("Questions count:", len(questions))
-    # embedded_questions = infersent.encode(questions, tokenize=True)
     for i in range(len(questions)):
-        # dict_embeddings[questions[i]] = embedded_questions[i]
-        dict_embeddings[questions[i]] = infersent.encode(questions[i], tokenize=True)
+        dict_embeddings[questions[i]] = infersent.encode([questions[i]], tokenize=True)
 
     return dict_embeddings
 

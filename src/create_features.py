@@ -68,7 +68,8 @@ def process_data(df, emb_dict):
 
     # Imports sentence embeddings into dataframe if exists
     print("- Processing sentence embeddings")
-    df['sent_emb'] = df['sentences'].apply(sent_embeddings)
+    df['sent_emb'] = df['sentences'].apply(lambda x: [emb_dict[item][0] if item in \
+                                                                           emb_dict else np.zeros(4096) for item in x])
     # Imports question embeddings into dataframe if exists
     print("- Processing question embeddings")
     df['quest_emb'] = df['question'].apply(
@@ -76,17 +77,6 @@ def process_data(df, emb_dict):
     )
 
     return df
-
-
-# Populate embeddings for sentence.
-def sent_embeddings(x):
-    sent_embs = []
-    for item in x:
-        if item in emb_dict:
-            sent_embs.append(emb_dict[item].reshape(1, 4096)[0])
-        else:
-            sent_embs.append(np.zeros(4096))
-    return sent_embs
 
 
 # Computes cosine similarity distance for each question
