@@ -13,11 +13,11 @@ en_nlp = spacy.load('en')
 
 # CONFIG
 embeddings_paths = [
-    'data/dict_embeddings1.pickle',
-    'data/dict_embeddings2.pickle'
+    'data/train2.0_embeddings1.pickle',
+    'data/train2.0_embeddings2.pickle'
 ]
 squad_dataset_path = "../squad/train-v2.0.json"
-output_dataset_as_csv_path = "data/train.csv"
+output_dataset_as_csv_path = "data/train2.0.csv"
 
 infersent_pretrained_path = 'InferSent/encoder/infersent1.pkl'
 glove_path = "InferSent/dataset/GloVe/glove.840B.300d.txt"
