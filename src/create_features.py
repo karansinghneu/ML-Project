@@ -12,15 +12,24 @@ from scipy import spatial
 from textblob import TextBlob
 
 warnings.filterwarnings('ignore')
+#
+# embeddings_paths = [
+#     'data/full_data/dict_embeddings1_fast_text.pickle',
+#     'data/full_data/dict_embeddings2_fast_text.pickle'
+# ]
+# squad_preprocessed_data_path = "data/train-v2.0.csv"
+# output_csv_path = "data/train2.0_detect_sent_fast_text.csv"
+# output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching_fast_text.csv"
+# root_matching = True  # Takes a long time
 
 embeddings_paths = [
-    'data/full_data/dict_embeddings1.pickle',
-    'data/full_data/dict_embeddings2.pickle'
+    'data/train2.0_embeddings1.pickle',
+    'data/train2.0_embeddings2.pickle'
 ]
-squad_preprocessed_data_path = "data/train.csv"
-output_csv_path = "data/train_detect_sent.csv"
-output_csv_with_root_matching_path = "data/train_detect_sent_root_matching.csv"
-root_matching = False  # Takes a long time
+squad_preprocessed_data_path = "data/train2.0.csv"
+output_csv_path = "data/train2.0_detect_sent.csv"
+output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
+root_matching = True  # Takes a long time
 
 
 def silentremove(filename):
@@ -89,24 +98,36 @@ def cosine_sim(x):
     distances = []
     for sentence_embedding in sentence_embeddings:
         distances.append(spatial.distance.cosine(sentence_embedding, question_embeddings))
+
     return distances
 
+def predict_index(distances):
+
+    if len(distances) == 0:
+        raise Exception
+
+    isnan = np.isnan(distances)
+
+    if all(isnan):
+        return 0
+
+    return np.nanargmin(distances)
 
 # Computes prediction from training data
-def predictions(train):
+def predictions(df):
     # Computes cosine similarity distance for each question
-    train["cosine_sim"] = train.apply(cosine_sim, axis=1)
+    df["cosine_sim"] = df.apply(cosine_sim, axis=1)
 
     # Computes euclidean distance for each question
-    train["diff"] = (train["quest_emb"] - train["sent_emb"]) ** 2
-    train["euclidean_dis"] = train["diff"].apply(lambda x: list(np.sum(x, axis=1)))
-    del train["diff"]
+    df["diff"] = (df["quest_emb"] - df["sent_emb"]) ** 2
+    df["euclidean_dis"] = df["diff"].apply(lambda x: list(np.sum(x, axis=1)))
+    del df["diff"]
 
     # Computes predicted index by taking the minimum distance of respective calculation
-    train["cos_predicted_index"] = train["cosine_sim"].apply(lambda x: np.argmin(x))
-    train["euc_predicted_index"] = train["euclidean_dis"].apply(lambda x: np.argmin(x))
+    df["cos_predicted_index"] = df["cosine_sim"].apply(lambda x: predict_index(x))
+    df["euc_predicted_index"] = df["euclidean_dis"].apply(lambda x: predict_index(x))
 
-    return train
+    return df
 
 
 # Computes accuracy between target and predicted
@@ -117,6 +138,10 @@ def accuracy(target, predicted):
 
 # ???
 def match_roots(x):
+    if (COUNT % 100 == 0):
+        print(COUNT)
+
+    increment()
     # Create nltk stemmer
     stemmer = LancasterStemmer()
 
@@ -144,10 +169,15 @@ def match_roots(x):
     return matched
 
 
+def increment():
+    global COUNT
+    COUNT = COUNT + 1
+
+
 def print_results(predicted):
     print("Prediction results: ")
-    print("cosine_sim: ", predicted["cosine_sim"][0])
-    print("euclidean_dis: ", predicted["euclidean_dis"][0])
+    # print("cosine_sim: ", predicted["cosine_sim"][0])
+    # print("euclidean_dis: ", predicted["euclidean_dis"][0])
 
     # Accuracy for euclidean Distance
     print("Accuracy for  euclidean Distance", accuracy(predicted["target"], predicted["euc_predicted_index"]))
@@ -188,7 +218,10 @@ if __name__ == '__main__':
     # Root Matching
     if root_matching:
         print("Root Matching...")
+
+        COUNT = 0
         predicted = pd.read_csv(output_csv_path).reset_index(drop=True)
+        print(predicted.shape)
         predicted["root_match_idx"] = predicted.apply(match_roots, axis=1)
         predicted["root_match_idx_first"] = predicted["root_match_idx"].apply(lambda x: x[0] if len(x) > 0 else 0)
         silentremove(output_csv_with_root_matching_path)
