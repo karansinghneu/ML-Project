@@ -14,13 +14,13 @@ from textblob import TextBlob
 warnings.filterwarnings('ignore')
 
 embeddings_paths = [
-    'data/full_data/dict_embeddings1.pickle',
-    'data/full_data/dict_embeddings2.pickle'
+    'data/full_data/dict_embeddings1_fast_text.pickle',
+    'data/full_data/dict_embeddings2_fast_text.pickle'
 ]
-squad_preprocessed_data_path = "data/train.csv"
-output_csv_path = "data/train_detect_sent.csv"
-output_csv_with_root_matching_path = "data/train_detect_sent_root_matching.csv"
-root_matching = False  # Takes a long time
+squad_preprocessed_data_path = "data/train-v2.0.csv"
+output_csv_path = "data/train_detect_sent_fast_text.csv"
+output_csv_with_root_matching_path = "data/train_detect_sent_root_matching_fast_text.csv"
+root_matching = True  # Takes a long time
 
 
 def silentremove(filename):
@@ -146,8 +146,8 @@ def match_roots(x):
 
 def print_results(predicted):
     print("Prediction results: ")
-    print("cosine_sim: ", predicted["cosine_sim"][0])
-    print("euclidean_dis: ", predicted["euclidean_dis"][0])
+    # print("cosine_sim: ", predicted["cosine_sim"][0])
+    # print("euclidean_dis: ", predicted["euclidean_dis"][0])
 
     # Accuracy for euclidean Distance
     print("Accuracy for  euclidean Distance", accuracy(predicted["target"], predicted["euc_predicted_index"]))
