@@ -12,12 +12,21 @@ from scipy import spatial
 from textblob import TextBlob
 
 warnings.filterwarnings('ignore')
+#
+# embeddings_paths = [
+#     'data/full_data/dict_embeddings1_fast_text.pickle',
+#     'data/full_data/dict_embeddings2_fast_text.pickle'
+# ]
+# squad_preprocessed_data_path = "data/train-v2.0.csv"
+# output_csv_path = "data/train-v2.0_detect_sent_fast_text.csv"
+# output_csv_with_root_matching_path = "data/train-v2.0_detect_sent_root_matching_fast_text.csv"
+# root_matching = True  # Takes a long time
 
 embeddings_paths = [
     'data/train2.0_embeddings1.pickle',
     'data/train2.0_embeddings2.pickle'
 ]
-squad_preprocessed_data_path = "data/train2.0.csv"
+squad_preprocessed_data_path = "./train-v2.0.csv"
 output_csv_path = "data/train2.0_detect_sent.csv"
 output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
 root_matching = True  # Takes a long time
@@ -92,8 +101,8 @@ def cosine_sim(x):
 
     return distances
 
-def predict_index(distances):
 
+def predict_index(distances):
     if len(distances) == 0:
         raise Exception
 
@@ -103,6 +112,7 @@ def predict_index(distances):
         return 0
 
     return np.nanargmin(distances)
+
 
 # Computes prediction from training data
 def predictions(df):
@@ -190,20 +200,21 @@ if __name__ == '__main__':
         raise Exception
 
     silentremove(output_csv_path)
-    for train_chunk in pd.read_csv(squad_preprocessed_data_path, chunksize=4096):
-        # pre-process data
-        print("Processing data chunk")
-        train_chunk = process_data(train_chunk, emb_dict)
 
-        # Predicted Cosine & Euclidean Index
-        print("Calculating predictions for chunk")
-        predicted = predictions(train_chunk)
-        print_results(predicted)
+    train = pd.read_csv(squad_preprocessed_data_path)
+    # pre-process data
+    print("Processing data")
+    train = process_data(train, emb_dict)
 
-        # TODO: Delete unnecessary columns before saving.
-        print("Saving predicted results for chunk")
-        predicted.to_csv(output_csv_path, index=None, mode='a')
+    # Predicted Cosine & Euclidean Index
+    print("Calculating predictions")
+    predicted = predictions(train)
+    print_results(predicted)
 
+    # TODO: Delete unnecessary columns before saving.
+    print("Saving predicted results")
+    silentremove(output_csv_path)
+    predicted.to_csv(output_csv_path, index=None)
     print("Saved to: ", output_csv_path)
 
     # Root Matching

@@ -12,6 +12,18 @@ import spacy
 en_nlp = spacy.load('en')
 
 # CONFIG
+# embeddings_paths = [
+#     'data/full_data/dict_embeddings1_fast_text.pickle',
+#     'data/full_data/dict_embeddings2_fast_text.pickle'
+# ]
+# squad_dataset_path = "../squad/train-v2.0.json"
+# output_dataset_as_csv_path = "data/train-v2.0.csv"
+#
+# infersent_pretrained_path = 'InferSent/encoder/infersent2.pkl'
+# glove_path = "InferSent/dataset/fastText/crawl-300d-2M.vec"
+#
+# full_data = True
+
 embeddings_paths = [
     'data/train2.0_embeddings1.pickle',
     'data/train2.0_embeddings2.pickle'
@@ -59,7 +71,7 @@ def generate_embeddings(df):
     sentences = [item.raw for item in blob.sentences]
 
     params_model = {'bsize': 64, 'word_emb_dim': 300, 'enc_lstm_dim': 2048,
-                    'pool_type': 'max', 'dpout_model': 0.0, 'version': 1}
+                    'pool_type': 'max', 'dpout_model': 0.0, 'version': 2}
     infersent = InferSent(params_model)
     infersent.load_state_dict(torch.load(infersent_pretrained_path))
     infersent.set_w2v_path(glove_path)
