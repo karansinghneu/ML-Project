@@ -1,4 +1,5 @@
 import math
+import pickle
 
 import numpy as np, pandas as pd
 import ast
@@ -92,8 +93,8 @@ def log_reg_fit(training, training_standardised):
     for train_index, test_index in skf.split(X, training_standardised.iloc[:, -1]):
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
         mul_lr.fit(X[train_index], training_standardised.iloc[:, -1][train_index])
-        model_name = "log_reg_fit_"+train_index+"_"+test_index+".pickle"
-        save_models and pickle.dump(mul_lr, open( model_name, "wb" ))
+        model_name = "log_reg_fit_" + train_index + "_" + test_index + ".pickle"
+        save_models and pickle.dump(mul_lr, open(model_name, "wb"))
         for m in range(100):
             new_data, new_output = resample(X[test_index], training_standardised.iloc[:, -1][test_index], replace=True)
             accuracy = metrics.accuracy_score(new_output, mul_lr.predict(new_data))
@@ -172,15 +173,14 @@ def log_reg_root(predicted1, train2):
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
         mul_lr.fit(dataset[train_index], output[train_index])
 
-        model_name = "log_reg_root_lr"+train_index+"_"+test_index+".pickle"
-        save_models and pickle.dump(mul_lr, open( model_name, "wb" ))
-
+        model_name = "log_reg_root_lr" + train_index + "_" + test_index + ".pickle"
+        save_models and pickle.dump(mul_lr, open(model_name, "wb"))
 
         rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
         rf.fit(dataset[train_index], output[train_index])
 
-        model_name = "log_reg_root_rf"+train_index+"_"+test_index+".pickle"
-        save_models and pickle.dump(rf, open( model_name, "wb" ))
+        model_name = "log_reg_root_rf" + train_index + "_" + test_index + ".pickle"
+        save_models and pickle.dump(rf, open(model_name, "wb"))
 
         model = xgb.XGBClassifier()
         param_dist = {"max_depth": [3, 5, 10],
@@ -198,9 +198,8 @@ def log_reg_root(predicted1, train2):
         xg = xgb.XGBClassifier(max_depth=5)
         xg.fit(dataset[train_index], output[train_index])
 
-
-        model_name = "log_reg_root_xg"+train_index+"_"+test_index+".pickle"
-        save_models and pickle.dump(xg, open( model_name, "wb" ))
+        model_name = "log_reg_root_xg" + train_index + "_" + test_index + ".pickle"
+        save_models and pickle.dump(xg, open(model_name, "wb"))
 
         for m in range(100):
             new_data, new_output = resample(dataset[test_index], output[test_index], replace=True)
@@ -247,6 +246,7 @@ def log_reg_root(predicted1, train2):
     print('XG Boost Confidence Interval with root matching is: ',
           sample_mean_xg - std_error_xg, ' to: ',
           sample_mean_xg + std_error_xg)
+
 
 data_usage = load_data()
 train_set = create_features(data_usage)
