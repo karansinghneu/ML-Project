@@ -17,9 +17,10 @@ embeddings_paths = [
     'data/full_data/dict_embeddings1_fast_text_dev.pickle',
     'data/full_data/dict_embeddings2_fast_text_dev.pickle'
 ]
-squad_preprocessed_data_path = "data/dev-v2.0.csv"
-output_csv_path = "data/dev-v2.0_detect_sent_fast_text.csv"
-output_csv_with_root_matching_path = "data/dev-v2.0_detect_sent_root_matching_fast_text.csv"
+
+squad_preprocessed_data_path = "data/train2.0.csv"
+output_csv_path = "data/train2.0_detect_sent.csv"
+output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
 root_matching = True  # Takes a long time
 
 # embeddings_paths = [
