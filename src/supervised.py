@@ -24,10 +24,11 @@ from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 en_nlp = spacy.load('en')
 st = LancasterStemmer()
 
-features_csv_path = "data/train2.0_detect_sent.csv"
-features_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
+features_csv_path = "data/train-v2.0_detect_sent_fast_text.csv"
+features_csv_with_root_matching_path = "data/train-v2.0_detect_sent_root_matching_fast_text.csv"
 
-validation_csv_path = "data/dev2.0_detect_sent_root_matching.csv"
+validation_csv_path_with_root_matching = "data/dev-v2.0_detect_sent_root_matching_fast_text.csv"
+validation_csv_path = "data/dev-v2.0_detect_sent_fast_text.csv"
 save_models = True
 
 
@@ -205,14 +206,14 @@ def log_reg_root(X, Y, vX, vY):
         Y_train, Y_test = Y[train_index], Y[test_index]
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
         mul_lr.fit(X_train, Y_train)
-        model_name = "log_reg_root_lr" + train_index + "_" + test_index + ".pickle"
-        save_models and pickle.dump(mul_lr, open(model_name, "wb"))
+        # model_name = "log_reg_root_lr" + train_index + "_" + test_index + ".pickle"
+        # save_models and pickle.dump(mul_lr, open(model_name, "wb"))
 
         rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
         rf.fit(X_train, Y_train)
 
-        model_name = "log_reg_root_rf" + train_index + "_" + test_index + ".pickle"
-        save_models and pickle.dump(rf, open(model_name, "wb"))
+        # model_name = "log_reg_root_rf" + train_index + "_" + test_index + ".pickle"
+        # save_models and pickle.dump(rf, open(model_name, "wb"))
 
         model = xgb.XGBClassifier()
         param_dist = {"max_depth": [3, 5, 10],
@@ -230,8 +231,8 @@ def log_reg_root(X, Y, vX, vY):
         xg = xgb.XGBClassifier(max_depth=5)
         xg.fit(X_train, Y_train)
 
-        model_name = "log_reg_root_xg" + train_index + "_" + test_index + ".pickle"
-        save_models and pickle.dump(xg, open(model_name, "wb"))
+        # model_name = "log_reg_root_xg" + train_index + "_" + test_index + ".pickle"
+        # save_models and pickle.dump(xg, open(model_name, "wb"))
 
         for m in range(100):
             new_data, new_output = resample(X_test, Y_test, replace=True)
@@ -290,7 +291,7 @@ def log_reg_root(X, Y, vX, vY):
 
 
 data_usage = load_data(features_csv_with_root_matching_path)
-validation_usage = load_data(validation_csv_path)
+validation_usage = load_data(validation_csv_path_with_root_matching)
 
 train_set = create_features(data_usage)
 validation_set = create_features(validation_usage)
@@ -306,7 +307,7 @@ print(train_set.head(3).transpose())
 training_standardised = create_concatenated(train_set)
 validation_standardised = create_concatenated(validation_set)
 
-log_reg_fit(training_standardised, validation_standardised)
+# log_reg_fit(training_standardised, validation_standardised)
 
 ## To run Model with root matching
 root_dataset, root_output = process_root_data(data_usage, training_standardised)
