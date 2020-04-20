@@ -6,7 +6,7 @@ from sklearn import linear_model
 from sklearn import metrics
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 import warnings
-
+import pickle
 from sklearn.utils import resample
 
 warnings.filterwarnings('ignore')
@@ -92,7 +92,8 @@ def log_reg_fit(training, training_standardised):
     for train_index, test_index in skf.split(X, training_standardised.iloc[:, -1]):
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
         mul_lr.fit(X[train_index], training_standardised.iloc[:, -1][train_index])
-        model_name = "log_reg_fit_" + train_index + "_" + test_index + ".pickle"
+        model_name = "log_reg_fit_" + str(ind) + ".pickle"
+        print(model_name)
         save_models and pickle.dump(mul_lr, open(model_name, "wb"))
         for m in range(100):
             new_data, new_output = resample(X[test_index], training_standardised.iloc[:, -1][test_index], replace=True)

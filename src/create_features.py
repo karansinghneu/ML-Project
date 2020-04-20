@@ -26,7 +26,7 @@ embeddings_paths = [
     'data/train2.0_embeddings1.pickle',
     'data/train2.0_embeddings2.pickle'
 ]
-squad_preprocessed_data_path = "./train-v2.0.csv"
+squad_preprocessed_data_path = "data/train2.0.csv"
 output_csv_path = "data/train2.0_detect_sent.csv"
 output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
 root_matching = True  # Takes a long time
