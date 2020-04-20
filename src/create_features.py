@@ -18,15 +18,15 @@ warnings.filterwarnings('ignore')
 #     'data/full_data/dict_embeddings2_fast_text.pickle'
 # ]
 # squad_preprocessed_data_path = "data/train-v2.0.csv"
-# output_csv_path = "data/train2.0_detect_sent_fast_text.csv"
-# output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching_fast_text.csv"
+# output_csv_path = "data/train-v2.0_detect_sent_fast_text.csv"
+# output_csv_with_root_matching_path = "data/train-v2.0_detect_sent_root_matching_fast_text.csv"
 # root_matching = True  # Takes a long time
 
 embeddings_paths = [
     'data/train2.0_embeddings1.pickle',
     'data/train2.0_embeddings2.pickle'
 ]
-squad_preprocessed_data_path = "data/train2.0.csv"
+squad_preprocessed_data_path = "./train-v2.0.csv"
 output_csv_path = "data/train2.0_detect_sent.csv"
 output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
 root_matching = True  # Takes a long time
@@ -207,7 +207,7 @@ if __name__ == '__main__':
         # Predicted Cosine & Euclidean Index
         print("Calculating predictions for chunk")
         predicted = predictions(train_chunk)
-        print_results(predicted)
+        # print_results(predicted)
 
         # TODO: Delete unnecessary columns before saving.
         print("Saving predicted results for chunk")
