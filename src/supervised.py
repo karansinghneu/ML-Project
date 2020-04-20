@@ -102,16 +102,6 @@ def log_reg_fit(training, training_standardised):
         sum_std_err += (each - sample_mean) ** 2
     std_error = math.sqrt(sum_std_err / (len(final_acc_array) - 1))
 
-    print(X)
-
-    # train_x, test_x, train_y, test_y = train_test_split(X,
-    #                                                     training.iloc[:, -1], train_size=0.8, random_state=5)
-
-    # mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-    # mul_lr.fit(train_x, train_y)
-
-    # print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
-    # print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
     print('Multinimoal Logistic Regression Accuracy is', sample_mean)
     print('Multinimoal Logistic Regression Standard Error is', std_error)
     print('Multinimoal Logistic Regression Confidence Interval is: ', sample_mean - std_error, ' to: ',
@@ -176,24 +166,11 @@ def log_reg_root(predicted1, train2):
         # train_x, test_x, train_y, test_y = train_test_split(train3.iloc[:, :-1],
         #                                                     train3.iloc[:, -1], train_size=0.8, random_state=5)
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-        # print('DATASET', dataset)
-        # print('INDEX', train_index)
-        # print('DATASET AT INDEX', dataset[train_index])
-        # print('OUTPUT', dataset)
-        # print('OUTPUT AT INDEX', output[train_index])
         mul_lr.fit(dataset[train_index], output[train_index])
 
-        # print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
-        # print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
-        ### Random Forest
 
         rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
         rf.fit(dataset[train_index], output[train_index])
-
-        # print("Random Forest Train Accuracy : ", metrics.accuracy_score(train_y, rf.predict(train_x)))
-        # print("Random Forest Test Accuracy : ", metrics.accuracy_score(test_y, rf.predict(test_x)))
-        #
-        ### XgBoost
 
         model = xgb.XGBClassifier()
         param_dist = {"max_depth": [3, 5, 10],
@@ -255,10 +232,6 @@ def log_reg_root(predicted1, train2):
     print('XG Boost Confidence Interval with root matching is: ',
           sample_mean_xg - std_error_xg, ' to: ',
           sample_mean_xg + std_error_xg)
-
-    # print("XG Boost Train Accuracy : ", metrics.accuracy_score(train_y, xg.predict(train_x)))
-    # print("XG Boost Test Accuracy : ", metrics.accuracy_score(test_y, xg.predict(test_x)))
-
 
 data_usage = load_data()
 train_set = create_features(data_usage)
