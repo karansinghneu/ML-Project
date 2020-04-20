@@ -23,9 +23,10 @@ from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 en_nlp = spacy.load('en')
 st = LancasterStemmer()
 
-features_csv_path = "./train2.0_detect_sent.csv"
+features_csv_path = "data/train2.0_detect_sent.csv"
 features_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
 
+validation_csv_path = "data/dev2.0_detect_sent_root_matching.csv"
 save_models = True
 
 
@@ -80,26 +81,59 @@ def create_concatenated(training):
     return train2
 
 
-def log_reg_fit(training, training_standardised):
+# TODO: make predictions on validation dataset
+# make new model: train on entire training dataset
+# as np arrays
+# validation_accuracy = metrics.accuracy_score(validation_output, mul_lr.predict(validation_data))
+# print validation accuracy
+def validate_logistic_regression(X, Y, vX, vY):
+
+    model = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
+    model.fit(X, Y)
+    validation_accuracy = metrics.accuracy_score(vY, model.predict(vX))
+
+    return validation_accuracy
+
+def validate_random_forest(X, Y, vX, vY):
+    rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
+    rf.fit(X, Y)
+    validation_accuracy = metrics.accuracy_score(vX, rf.predict(vY))
+
+    return validation_accuracy
+
+def validate_XGB(X, Y, vX, vY):
+    xg = xgb.XGBClassifier(max_depth=5)
+    xg.fit(X, Y)
+    validation_accuracy = metrics.accuracy_score(vX, xg.predict(vY))
+
+    return validation_accuracy
+
+def log_reg_fit(training_standardised, validation_standardised):
     ### Fitting Multinomial Logistic Regression
 
     ### Standardize
     skf = KFold(n_splits=10)
     scaler = MinMaxScaler()
     X = scaler.fit_transform(training_standardised.iloc[:, :-1])
+    Y = training_standardised.iloc[:, -1]
     acc_array = np.zeros((10, 100))
     ind = 0
     for train_index, test_index in skf.split(X, training_standardised.iloc[:, -1]):
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-        mul_lr.fit(X[train_index], training_standardised.iloc[:, -1][train_index])
+        mul_lr.fit(X[train_index], Y[train_index])
         model_name = "log_reg_fit_" + str(ind) + ".pickle"
         print(model_name)
         save_models and pickle.dump(mul_lr, open(model_name, "wb"))
         for m in range(100):
-            new_data, new_output = resample(X[test_index], training_standardised.iloc[:, -1][test_index], replace=True)
+            new_data, new_output = resample(X[test_index], Y[test_index], replace=True)
             accuracy = metrics.accuracy_score(new_output, mul_lr.predict(new_data))
             acc_array[ind][m] = accuracy
         ind += 1
+
+    vX = scaler.fit_transform(validation_standardised.iloc[:, :-1])
+    vY = validation_standardised.iloc[:, -1]
+    validation_accuracy = validate_logistic_regression(X, Y, vX, vY)
+
     final_acc_array = np.mean(acc_array, axis=0)
     sample_mean = np.average(final_acc_array)
     sum_std_err = 0
@@ -111,6 +145,7 @@ def log_reg_fit(training, training_standardised):
     print('Multinimoal Logistic Regression Standard Error is', std_error)
     print('Multinimoal Logistic Regression Confidence Interval is: ', sample_mean - std_error, ' to: ',
           sample_mean + std_error)
+    print("Validation accuracy:", validation_accuracy)
 
 
 def get_columns_from_root(train):
@@ -123,61 +158,43 @@ def get_columns_from_root(train):
                 train.loc[i, "column_root_" + "%s" % item] = 1
     return train
 
-
-## For Model with root matching
-def log_reg_root(predicted1, train2):
-    # ### Logistic-Regression with Root Match feature
-    # predicted = pd.read_csv(features_csv_with_root_matching_path).reset_index(drop=True)
-    #
-    # predicted = predicted[predicted["sentences"].apply(lambda x: len(ast.literal_eval(x))) < 11].reset_index(drop=True)
-
-    print(predicted1.shape)
+def process_root_data(predicted1, train2):
     predicted_new = get_columns_from_root(predicted1)
-
-    print(predicted_new.head(3).transpose())
-
     subset3 = predicted_new[
         ["column_root_0", "column_root_1", "column_root_2", "column_root_3", "column_root_4", "column_root_5", \
          "column_root_6", "column_root_7", "column_root_8", "column_root_9"]]
-
     subset3.fillna(0, inplace=True)
-
     train3 = pd.concat([subset3, train2], axis=1, join='outer')
-
-    print(train3.head(3).transpose())
-
     train3 = train3[
         ["column_root_0", "column_root_1", "column_root_2", "column_root_3", "column_root_4", "column_root_5", \
          "column_root_6", "column_root_7", "column_root_8", "column_root_9", "column_cos_0", "column_cos_1", \
          "column_cos_2", "column_cos_3", "column_cos_4", "column_cos_5", \
          "column_cos_6", "column_cos_7", "column_cos_8", "column_cos_9", "target"]]
-
-    # train_x, test_x, train_y, test_y = train_test_split(train3.iloc[:, :-1],
-    #                                                     train3.iloc[:, -1], train_size=0.8, random_state=5)
-    # mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-    # mul_lr.fit(train_x, train_y)
-    # print("Multinomial Logistic regression Train Accuracy : ", metrics.accuracy_score(train_y, mul_lr.predict(train_x)))
-    # print("Multinomial Logistic regression Test Accuracy : ", metrics.accuracy_score(test_y, mul_lr.predict(test_x)))
-
     dataset = train3.iloc[:, :-1].to_numpy()
     output = train3.iloc[:, -1].to_numpy()
+
+    return dataset, output
+## For Model with root matching
+def log_reg_root(X, Y, vX, vY):
+
     skf = KFold(n_splits=10)
     acc_array_log = np.zeros((10, 100))
     acc_array_random = np.zeros((10, 100))
     acc_array_xg = np.zeros((10, 100))
     ind = 0
-    for train_index, test_index in skf.split(dataset, output):
+    for train_index, test_index in skf.split(X, Y):
 
-        # train_x, test_x, train_y, test_y = train_test_split(train3.iloc[:, :-1],
-        #                                                     train3.iloc[:, -1], train_size=0.8, random_state=5)
+        X_train, X_test = X[train_index], X[test_index]
+        Y_train, Y_test = Y[train_index], Y[test_index]
+
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
-        mul_lr.fit(dataset[train_index], output[train_index])
+        mul_lr.fit(X_train, Y_train)
 
         model_name = "log_reg_root_lr" + train_index + "_" + test_index + ".pickle"
         save_models and pickle.dump(mul_lr, open(model_name, "wb"))
 
         rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
-        rf.fit(dataset[train_index], output[train_index])
+        rf.fit(X_train, Y_train)
 
         model_name = "log_reg_root_rf" + train_index + "_" + test_index + ".pickle"
         save_models and pickle.dump(rf, open(model_name, "wb"))
@@ -191,18 +208,18 @@ def log_reg_root(predicted1, train2):
         # run randomized search
         grid_search = GridSearchCV(model, param_grid=param_dist, cv=3,
                                    verbose=5, n_jobs=-1)
-        grid_search.fit(dataset[train_index], output[train_index])
+        grid_search.fit(X_train, Y_train)
 
         print('Best Estimator', grid_search.best_estimator_)
 
         xg = xgb.XGBClassifier(max_depth=5)
-        xg.fit(dataset[train_index], output[train_index])
+        xg.fit(X_train, Y_train)
 
         model_name = "log_reg_root_xg" + train_index + "_" + test_index + ".pickle"
         save_models and pickle.dump(xg, open(model_name, "wb"))
 
         for m in range(100):
-            new_data, new_output = resample(dataset[test_index], output[test_index], replace=True)
+            new_data, new_output = resample(X_test, Y_test, replace=True)
             accuracy_log = metrics.accuracy_score(new_output, mul_lr.predict(new_data))
             accuracy_random = metrics.accuracy_score(new_output, rf.predict(new_data))
             accuracy_xg = metrics.accuracy_score(new_output, xg.predict(new_data))
@@ -210,6 +227,12 @@ def log_reg_root(predicted1, train2):
             acc_array_random[ind][m] = accuracy_random
             acc_array_xg[ind][m] = accuracy_xg
         ind += 1
+
+
+    lr_validation_accuracy = validate_logistic_regression(X, Y, vX, vY)
+    rf_validation_accuracy = validate_random_forest(X, Y, vX, vY)
+    xgb_validation_accuracy = validate_XGB(X, Y, vX, vY)
+
     final_acc_array_log = np.mean(acc_array_log, axis=0)
     final_acc_array_random = np.mean(acc_array_random, axis=0)
     final_acc_array_xg = np.mean(acc_array_xg, axis=0)
@@ -247,9 +270,15 @@ def log_reg_root(predicted1, train2):
           sample_mean_xg - std_error_xg, ' to: ',
           sample_mean_xg + std_error_xg)
 
+    print("Linear regression validation accuracy:", lr_validation_accuracy)
+    print("Random forest validation accuracy:", rf_validation_accuracy)
+    print("XGB validation accuracy:", xgb_validation_accuracy)
 
 data_usage = load_data(features_csv_with_root_matching_path)
+validation_usage = load_data(validation_csv_path)
+
 train_set = create_features(data_usage)
+validation_set = create_features(validation_usage)
 
 # del data
 
@@ -258,8 +287,14 @@ print(train_set.head(3))
 # train.fillna(10000, inplace=True)
 
 print(train_set.head(3).transpose())
+
 training_standardised = create_concatenated(train_set)
-log_reg_fit(train_set, training_standardised)
+validation_standardised = create_concatenated(validation_set)
+
+log_reg_fit(training_standardised, validation_standardised)
 
 ## To run Model with root matching
-log_reg_root(data_usage, training_standardised)
+root_dataset, root_output = process_root_data(data_usage, training_standardised)
+validation_root_dataset, validation_root_output = process_root_data(validation_usage, validation_standardised)
+
+log_reg_root(root_dataset, root_output, validation_root_dataset, validation_root_output)
