@@ -20,9 +20,8 @@ en_nlp = spacy.load('en')
 st = LancasterStemmer()
 
 
-
-features_csv_path = "data/train_detect_sent.csv"
-features_csv_with_root_matching_path = "data/train_detect_sent_root_matching.csv"
+features_csv_path = "data/train2.0_detect_sent.csv"
+features_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
 
 
 def load_data():
