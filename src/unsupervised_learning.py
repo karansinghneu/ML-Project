@@ -18,10 +18,10 @@ embeddings_paths = [
     'data/full_data/dict_embeddings2_fast_text_dev.pickle'
 ]
 
-squad_preprocessed_data_path = "data/train2.0.csv"
-output_csv_path = "data/train2.0_detect_sent.csv"
+squad_preprocessed_data_path = "data/dev-v2.0.csv"
+output_csv_path = "data/sample_run.csv"
 output_csv_with_root_matching_path = "data/train2.0_detect_sent_root_matching.csv"
-root_matching = True  # Takes a long time
+root_matching = False  # Takes a long time
 
 # embeddings_paths = [
 #     'data/train2.0_embeddings1.pickle',
@@ -138,30 +138,24 @@ def accuracy(target, predicted):
     return acc
 
 
-# ???
 def match_roots(x):
     if (COUNT % 100 == 0):
         print(COUNT)
 
     increment()
-    # Create nltk stemmer
     stemmer = LancasterStemmer()
 
-    # Create spacy language processor
     nlp_processor = spacy.load('en')
 
     question = x["question"].lower()
     sentences = nlp_processor(x["context"].lower()).sents
 
-    # Calculates the stemmed root word of the question
     question_root = stemmer.stem(str([sent.root for sent in nlp_processor(question).sents][0]))
 
     matched = []
     for i, sent in enumerate(sentences):
-        # List of roots from sentence surrounding nouns
         roots = [stemmer.stem(chunk.root.head.text.lower()) for chunk in sent.noun_chunks]
 
-        # If question root exists in sentence roots (surrounding nouns)
         if question_root in roots:
             for k, item in enumerate(ast.literal_eval(x["sentences"])):
                 # If sentence is found in match
