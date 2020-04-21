@@ -1,25 +1,24 @@
 import math
-import pickle
+from sklearn.metrics import classification_report
 
 import numpy as np, pandas as pd
 import ast
 from sklearn import linear_model
 from sklearn import metrics
-from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
+from sklearn.model_selection import KFold
 import warnings
 import pickle
 from sklearn.utils import resample
 
 warnings.filterwarnings('ignore')
 import spacy
-from nltk import Tree
 
 import xgboost as xgb
 from nltk.stem.lancaster import LancasterStemmer
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
 
-from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
+from sklearn.model_selection import GridSearchCV
 
 en_nlp = spacy.load('en')
 st = LancasterStemmer()
@@ -92,16 +91,26 @@ def validate_logistic_regression(X, Y, vX, vY):
     model = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
     model.fit(X, Y)
     validation_accuracy = metrics.accuracy_score(vY, model.predict(vX))
+    target_names = ['class -1', 'class 1', 'class 2', 'class 3', 'class 4', 'class 5', 'class 6', 'class 7', 'class 8',
+                    'class 9',
+                    'class 10']
+    report = classification_report(vY, model.predict(vX), target_names=target_names)
+    validation_f1 = metrics.f1_score(vY, model.predict(vX), average='micro')
 
-    return validation_accuracy
+    return validation_accuracy, report, validation_f1
 
 
 def validate_random_forest(X, Y, vX, vY):
     rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
     rf.fit(X, Y)
     validation_accuracy = metrics.accuracy_score(vY, rf.predict(vX))
+    target_names = ['class -1', 'class 1', 'class 2', 'class 3', 'class 4', 'class 5', 'class 6', 'class 7', 'class 8',
+                    'class 9',
+                    'class 10']
+    report = classification_report(vY, rf.predict(vX), target_names=target_names)
+    validation_f1 = metrics.f1_score(vY, rf.predict(vX), average='micro')
 
-    return validation_accuracy
+    return validation_accuracy, report, validation_f1
 
 
 def validate_XGB(X, Y, vX, vY):
@@ -120,8 +129,13 @@ def validate_XGB(X, Y, vX, vY):
     xg = xgb.XGBClassifier(max_depth=5)
     xg.fit(X, Y)
     validation_accuracy = metrics.accuracy_score(vY, xg.predict(vX))
+    target_names = ['class -1', 'class 1', 'class 2', 'class 3', 'class 4', 'class 5', 'class 6', 'class 7', 'class 8',
+                    'class 9',
+                    'class 10']
+    report = classification_report(vY, xg.predict(vX), target_names=target_names)
+    validation_f1 = metrics.f1_score(vY, xg.predict(vX), average='micro')
 
-    return validation_accuracy
+    return validation_accuracy, report, validation_f1
 
 
 def log_reg_fit(training_standardised, validation_standardised):
@@ -133,35 +147,48 @@ def log_reg_fit(training_standardised, validation_standardised):
     X = scaler.fit_transform(training_standardised.iloc[:, :-1])
     Y = training_standardised.iloc[:, -1]
     acc_array = np.zeros((10, 100))
+    f1_micro_array = np.zeros((10, 100))
     ind = 0
     for train_index, test_index in skf.split(X, Y):
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
         mul_lr.fit(X[train_index], Y[train_index])
-        model_name = "log_reg_fit_" + str(ind) + ".pickle"
-        print(model_name)
-        save_models and pickle.dump(mul_lr, open(model_name, "wb"))
         for m in range(100):
             new_data, new_output = resample(X[test_index], Y[test_index], replace=True)
             accuracy = metrics.accuracy_score(new_output, mul_lr.predict(new_data))
+            f1_micro = metrics.f1_score(new_output, mul_lr.predict(new_data), average='micro')
             acc_array[ind][m] = accuracy
+            f1_micro_array[ind][m] = f1_micro
         ind += 1
 
     vX = scaler.fit_transform(validation_standardised.iloc[:, :-1])
     vY = validation_standardised.iloc[:, -1]
-    validation_accuracy = validate_logistic_regression(X, Y, vX, vY)
+    validation_accuracy, report, validation_f1 = validate_logistic_regression(X, Y, vX, vY)
 
     final_acc_array = np.mean(acc_array, axis=0)
+    final_f1_micro_array = np.mean(f1_micro_array, axis=0)
     sample_mean = np.average(final_acc_array)
+    sample_f1_micro = np.average(final_f1_micro_array)
     sum_std_err = 0
+    sum_std_err_micro = 0
     for each in final_acc_array:
         sum_std_err += (each - sample_mean) ** 2
     std_error = math.sqrt(sum_std_err / (len(final_acc_array) - 1))
+    for each in final_f1_micro_array:
+        sum_std_err_micro += (each - sample_f1_micro) ** 2
+    std_error_micro = math.sqrt(sum_std_err_micro / (len(final_f1_micro_array) - 1))
 
     print('Multinimoal Logistic Regression Accuracy is', sample_mean)
     print('Multinimoal Logistic Regression Standard Error is', std_error)
     print('Multinimoal Logistic Regression Confidence Interval is: ', sample_mean - std_error, ' to: ',
           sample_mean + std_error)
     print("Validation accuracy:", validation_accuracy)
+    print('Multinimoal Logistic Regression F-1 Micro is', sample_f1_micro)
+    print('Multinimoal Logistic Regression F-1 Micro Standard Error is', std_error_micro)
+    print('Multinimoal Logistic Regression  F-1 Micro Confidence Interval is: ', sample_f1_micro - std_error_micro,
+          ' to: ',
+          sample_f1_micro + std_error_micro)
+    print("Validation F-1 Micro:", validation_f1)
+    print('Classification report', report)
 
 
 def get_columns_from_root(train):
@@ -199,6 +226,9 @@ def log_reg_root(X, Y, vX, vY):
     acc_array_log = np.zeros((10, 100))
     acc_array_random = np.zeros((10, 100))
     acc_array_xg = np.zeros((10, 100))
+    f1_micro_array_log = np.zeros((10, 100))
+    f1_micro_array_random = np.zeros((10, 100))
+    f1_micro_array_xg = np.zeros((10, 100))
     ind = 0
     for train_index, test_index in skf.split(X, Y):
 
@@ -206,14 +236,9 @@ def log_reg_root(X, Y, vX, vY):
         Y_train, Y_test = Y[train_index], Y[test_index]
         mul_lr = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
         mul_lr.fit(X_train, Y_train)
-        # model_name = "log_reg_root_lr" + train_index + "_" + test_index + ".pickle"
-        # save_models and pickle.dump(mul_lr, open(model_name, "wb"))
 
         rf = RandomForestClassifier(min_samples_leaf=8, n_estimators=60)
         rf.fit(X_train, Y_train)
-
-        # model_name = "log_reg_root_rf" + train_index + "_" + test_index + ".pickle"
-        # save_models and pickle.dump(rf, open(model_name, "wb"))
 
         model = xgb.XGBClassifier()
         param_dist = {"max_depth": [3, 5, 10],
@@ -231,32 +256,45 @@ def log_reg_root(X, Y, vX, vY):
         xg = xgb.XGBClassifier(max_depth=5)
         xg.fit(X_train, Y_train)
 
-        # model_name = "log_reg_root_xg" + train_index + "_" + test_index + ".pickle"
-        # save_models and pickle.dump(xg, open(model_name, "wb"))
-
         for m in range(100):
             new_data, new_output = resample(X_test, Y_test, replace=True)
             accuracy_log = metrics.accuracy_score(new_output, mul_lr.predict(new_data))
             accuracy_random = metrics.accuracy_score(new_output, rf.predict(new_data))
             accuracy_xg = metrics.accuracy_score(new_output, xg.predict(new_data))
+            f1_micro_log = metrics.f1_score(new_output, mul_lr.predict(new_data), average='micro')
+            f1_micro_random = metrics.f1_score(new_output, rf.predict(new_data), average='micro')
+            f1_micro_xg = metrics.f1_score(new_output, xg.predict(new_data), average='micro')
             acc_array_log[ind][m] = accuracy_log
             acc_array_random[ind][m] = accuracy_random
             acc_array_xg[ind][m] = accuracy_xg
+            f1_micro_array_log[ind][m] = f1_micro_log
+            f1_micro_array_random[ind][m] = f1_micro_random
+            f1_micro_array_xg[ind][m] = f1_micro_xg
+
         ind += 1
 
-    lr_validation_accuracy = validate_logistic_regression(X, Y, vX, vY)
-    rf_validation_accuracy = validate_random_forest(X, Y, vX, vY)
-    xgb_validation_accuracy = validate_XGB(X, Y, vX, vY)
+    lr_validation_accuracy, report_lr, f1_lr = validate_logistic_regression(X, Y, vX, vY)
+    rf_validation_accuracy, report_rf, f1_rf = validate_random_forest(X, Y, vX, vY)
+    xgb_validation_accuracy, report_xgb, f1_xgb = validate_XGB(X, Y, vX, vY)
 
     final_acc_array_log = np.mean(acc_array_log, axis=0)
     final_acc_array_random = np.mean(acc_array_random, axis=0)
     final_acc_array_xg = np.mean(acc_array_xg, axis=0)
+    final_f1_micro_array_log = np.mean(f1_micro_array_log, axis=0)
+    final_f1_micro_array_random = np.mean(f1_micro_array_random, axis=0)
+    final_f1_micro_array_xg = np.mean(f1_micro_array_xg, axis=0)
     sample_mean_log = np.average(final_acc_array_log)
     sample_mean_random = np.average(final_acc_array_random)
     sample_mean_xg = np.average(final_acc_array_xg)
+    sample_f1_log = np.average(final_f1_micro_array_log)
+    sample_f1_random = np.average(final_f1_micro_array_random)
+    sample_f1_xg = np.average(final_f1_micro_array_xg)
     sum_std_err_log = 0
     sum_std_err_random = 0
     sum_std_err_xg = 0
+    sum_std_err_log_f1 = 0
+    sum_std_err_random_f1 = 0
+    sum_std_err_xg_f1 = 0
     for each in final_acc_array_log:
         sum_std_err_log += (each - sample_mean_log) ** 2
     std_error_log = math.sqrt(sum_std_err_log / (len(final_acc_array_log) - 1))
@@ -267,27 +305,60 @@ def log_reg_root(X, Y, vX, vY):
         sum_std_err_xg += (each - sample_mean_xg) ** 2
     std_error_xg = math.sqrt(sum_std_err_xg / (len(final_acc_array_xg) - 1))
 
+    for each in final_f1_micro_array_log:
+        sum_std_err_log_f1 += (each - sample_f1_log) ** 2
+    std_error_log_f1 = math.sqrt(sum_std_err_log_f1 / (len(final_f1_micro_array_log) - 1))
+    for each in final_f1_micro_array_random:
+        sum_std_err_random_f1 += (each - sample_f1_random) ** 2
+    std_error_random_f1 = math.sqrt(sum_std_err_random_f1 / (len(final_f1_micro_array_random) - 1))
+    for each in final_f1_micro_array_xg:
+        sum_std_err_xg_f1 += (each - sample_f1_xg) ** 2
+    std_error_xg_f1 = math.sqrt(sum_std_err_xg_f1 / (len(final_f1_micro_array_xg) - 1))
+
     print('Multinimoal Logistic Regression Accuracy with root matching is: ', sample_mean_log)
     print('Multinimoal Logistic Regression Standard Error with root matching is: ', std_error_log)
     print('Multinimoal Logistic Regression Confidence Interval with root matching is: ',
           sample_mean_log - std_error_log, ' to: ',
           sample_mean_log + std_error_log)
+    print("Multinomial Logistic regression validation accuracy:", lr_validation_accuracy)
+
+    print('Multinimoal Logistic Regression F1 with root matching is: ', sample_f1_log)
+    print('Multinimoal Logistic Regression F1 Standard Error with root matching is: ', std_error_log_f1)
+    print('Multinimoal Logistic Regression F1 Confidence Interval with root matching is: ',
+          sample_f1_log - std_error_log_f1, ' to: ',
+          sample_f1_log + std_error_log_f1)
+    print("Multinomial Logistic regression validation F1:", f1_lr)
+    print("Multinomial Logistic Regression Report", report_lr)
 
     print('Random Forest Accuracy with root matching is: ', sample_mean_random)
     print('Random Forest Standard Error with root matching is: ', std_error_random)
     print('Random Forest Confidence Interval with root matching is: ',
           sample_mean_random - std_error_random, ' to: ',
           sample_mean_random + std_error_random)
+    print("Random forest validation accuracy:", rf_validation_accuracy)
+
+    print('Random Forest F1 with root matching is: ', sample_f1_random)
+    print('Random Forest F1 Standard Error with root matching is: ', std_error_random_f1)
+    print('Random Forest F1 Confidence Interval with root matching is: ',
+          sample_f1_random - std_error_random_f1, ' to: ',
+          sample_f1_random + std_error_random_f1)
+    print("Random forest validation F1:", f1_rf)
+    print("Random Forest Report", report_rf)
 
     print('XG Boost Accuracy with root matching is: ', sample_mean_xg)
     print('XG Boost Standard Error with root matching is: ', std_error_xg)
     print('XG Boost Confidence Interval with root matching is: ',
           sample_mean_xg - std_error_xg, ' to: ',
           sample_mean_xg + std_error_xg)
-
-    print("Multinomial Logistic regression validation accuracy:", lr_validation_accuracy)
-    print("Random forest validation accuracy:", rf_validation_accuracy)
     print("XGB validation accuracy:", xgb_validation_accuracy)
+
+    print('XG Boost F1 with root matching is: ', sample_f1_xg)
+    print('XG Boost F1 Standard Error with root matching is: ', std_error_xg_f1)
+    print('XG Boost F1 Confidence Interval with root matching is: ',
+          sample_f1_xg - std_error_xg_f1, ' to: ',
+          sample_f1_xg + std_error_xg_f1)
+    print("XGB validation F1:", f1_xgb)
+    print("XGB Report", report_xgb)
 
 
 data_usage = load_data(features_csv_with_root_matching_path)
