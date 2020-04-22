@@ -206,7 +206,6 @@ if __name__ == '__main__':
     predicted = predictions(train)
     print_results(predicted)
 
-    # TODO: Delete unnecessary columns before saving.
     print("Saving predicted results")
     silentremove(output_csv_path)
     predicted.to_csv(output_csv_path, index=None)

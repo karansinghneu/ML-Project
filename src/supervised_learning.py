@@ -7,7 +7,6 @@ from sklearn import linear_model
 from sklearn import metrics
 from sklearn.model_selection import KFold
 import warnings
-import pickle
 from sklearn.utils import resample
 
 warnings.filterwarnings('ignore')
@@ -81,12 +80,6 @@ def create_concatenated(training):
     train2.apply(max, axis=0)
     return train2
 
-
-# TODO: make predictions on validation dataset
-# make new model: train on entire training dataset
-# as np arrays
-# validation_accuracy = metrics.accuracy_score(validation_output, mul_lr.predict(validation_data))
-# print validation accuracy
 def validate_logistic_regression(X, Y, vX, vY):
     model = linear_model.LogisticRegression(multi_class='multinomial', solver='newton-cg')
     model.fit(X, Y)
@@ -378,7 +371,7 @@ print(train_set.head(3).transpose())
 training_standardised = create_concatenated(train_set)
 validation_standardised = create_concatenated(validation_set)
 
-# log_reg_fit(training_standardised, validation_standardised)
+log_reg_fit(training_standardised, validation_standardised)
 
 ## To run Model with root matching
 root_dataset, root_output = process_root_data(data_usage, training_standardised)
